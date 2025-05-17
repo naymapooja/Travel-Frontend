@@ -1,0 +1,428 @@
+// import React, { useEffect, useRef, useState } from "react";
+// import { Loader } from "@googlemaps/js-api-loader";
+
+// const HotelSearchPage = () => {
+//   const mapRef = useRef(null);
+//   const inputRef = useRef(null);
+//   const countryRef = useRef(null);
+
+//   const mapInstance = useRef(null);
+//   const infoWindowRef = useRef(null);
+//   const markersRef = useRef([]);
+//   const autocompleteRef = useRef(null);
+//   const placesServiceRef = useRef(null);
+
+//   const [results, setResults] = useState([]);
+
+//   const countries = {
+//     us: { center: { lat: 37.1, lng: -95.7 }, zoom: 3 },
+//     au: { center: { lat: -25.3, lng: 133.8 }, zoom: 4 },
+//     br: { center: { lat: -14.2, lng: -51.9 }, zoom: 3 },
+//     ca: { center: { lat: 62, lng: -110.0 }, zoom: 3 },
+//     fr: { center: { lat: 46.2, lng: 2.2 }, zoom: 5 },
+//     de: { center: { lat: 51.2, lng: 10.4 }, zoom: 5 },
+//     mx: { center: { lat: 23.6, lng: -102.5 }, zoom: 4 },
+//     nz: { center: { lat: -40.9, lng: 174.9 }, zoom: 5 },
+//     it: { center: { lat: 41.9, lng: 12.6 }, zoom: 5 },
+//     za: { center: { lat: -30.6, lng: 22.9 }, zoom: 5 },
+//     es: { center: { lat: 40.5, lng: -3.7 }, zoom: 5 },
+//     pt: { center: { lat: 39.4, lng: -8.2 }, zoom: 6 },
+//     uk: { center: { lat: 54.8, lng: -4.6 }, zoom: 5 },
+//   };
+
+//   useEffect(() => {
+//     const loader = new Loader({
+//       apiKey: "AIzaSyCwa-Z_1vKzlecGHD1mk3UtoN39MpwQORM", // your API key
+//       version: "weekly",
+//       libraries: ["places"],
+//     });
+
+//     loader.load().then(() => {
+//       const { maps } = window.google;
+
+//       const defaultCountry = "us";
+//       const map = new maps.Map(mapRef.current, {
+//         center: countries[defaultCountry].center,
+//         zoom: countries[defaultCountry].zoom,
+//       });
+
+//       mapInstance.current = map;
+//       infoWindowRef.current = new maps.InfoWindow();
+//       placesServiceRef.current = new maps.places.PlacesService(map);
+
+//       const autocomplete = new maps.places.Autocomplete(inputRef.current, {
+//         types: ["(cities)"],
+//         componentRestrictions: { country: defaultCountry },
+//         fields: ["geometry"],
+//       });
+
+//       autocompleteRef.current = autocomplete;
+
+//       autocomplete.addListener("place_changed", () => {
+//         const place = autocomplete.getPlace();
+//         if (!place.geometry || !place.geometry.location) {
+//           inputRef.current.placeholder = "Enter a city";
+//           return;
+//         }
+
+//         map.setCenter(place.geometry.location);
+//         map.setZoom(15);
+//         searchHotels();
+//       });
+
+//       countryRef.current.addEventListener("change", () => {
+//         const country = countryRef.current.value;
+//         if (country === "all") {
+//           autocomplete.setComponentRestrictions({ country: [] });
+//           map.setCenter({ lat: 15, lng: 0 });
+//           map.setZoom(2);
+//         } else {
+//           autocomplete.setComponentRestrictions({ country });
+//           map.setCenter(countries[country].center);
+//           map.setZoom(countries[country].zoom);
+//         }
+//         clearResults();
+//         clearMarkers();
+//       });
+//     });
+//   }, []);
+
+//   const searchHotels = () => {
+//     const map = mapInstance.current;
+//     const service = placesServiceRef.current;
+//     const bounds = map.getBounds();
+
+//     if (!bounds) return;
+
+//     service.nearbySearch(
+//       {
+//         bounds,
+//         type: ["lodging"],
+//       },
+//       (resultsData, status) => {
+//         if (status !== window.google.maps.places.PlacesServiceStatus.OK) return;
+
+//         clearResults();
+//         clearMarkers();
+
+//         const newMarkers = [];
+//         const newResults = resultsData.map((place, i) => {
+//           const markerLetter = String.fromCharCode("A".charCodeAt(0) + (i % 26));
+//           const markerIcon = `https://developers.google.com/maps/documentation/javascript/images/marker_green${markerLetter}.png`;
+
+//           const marker = new window.google.maps.Marker({
+//             position: place.geometry.location,
+//             icon: markerIcon,
+//             map,
+//             animation: window.google.maps.Animation.DROP,
+//           });
+
+//           marker.placeResult = place;
+
+//           marker.addListener("click", () => {
+//             service.getDetails({ placeId: place.place_id }, (details, status) => {
+//               if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+//                 const content = `
+//                   <strong>${details.name}</strong><br>
+//                   ${details.vicinity}<br>
+//                   Rating: ${details.rating || "N/A"}
+//                 `;
+//                 infoWindowRef.current.setContent(content);
+//                 infoWindowRef.current.open(map, marker);
+//               }
+//             });
+//           });
+
+//           newMarkers.push(marker);
+
+//           return {
+//             name: place.name,
+//             marker,
+//           };
+//         });
+
+//         markersRef.current = newMarkers;
+//         setResults(newResults);
+//       }
+//     );
+//   };
+
+//   const clearMarkers = () => {
+//     markersRef.current.forEach((marker) => marker.setMap(null));
+//     markersRef.current = [];
+//   };
+
+//   const clearResults = () => {
+//     setResults([]);
+//   };
+
+//   return (
+//     <div className="flex h-screen">
+//       <div className="w-1/4 p-4 bg-white overflow-auto">
+//         <h2 className="text-xl font-bold mb-4">Find hotels in:</h2>
+
+//         <input
+//           ref={inputRef}
+//           type="text"
+//           className="w-full p-2 border rounded mb-4 text-black"
+//           placeholder="Enter a city"
+//         />
+
+//         <select
+//           ref={countryRef}
+//           className="w-full p-2 border rounded mb-4 text-black"
+//           defaultValue="us"
+//         >
+//           <option value="all">All</option>
+//           <option value="au">Australia</option>
+//           <option value="br">Brazil</option>
+//           <option value="ca">Canada</option>
+//           <option value="fr">France</option>
+//           <option value="de">Germany</option>
+//           <option value="mx">Mexico</option>
+//           <option value="nz">New Zealand</option>
+//           <option value="it">Italy</option>
+//           <option value="za">South Africa</option>
+//           <option value="es">Spain</option>
+//           <option value="pt">Portugal</option>
+//           <option value="us">U.S.A.</option>
+//           <option value="uk">United Kingdom</option>
+//         </select>
+
+//         <h3 className="text-lg font-semibold mb-2 text-black">Results</h3>
+//         <div className="space-y-2 text-black">
+//           {results.map((result, index) => (
+//             <div
+//               key={index}
+//               className="p-2 bg-white shadow rounded mb-2 cursor-pointer hover:bg-gray-100"
+//               onClick={() =>
+//                 window.google.maps.event.trigger(result.marker, "click")
+//               }
+//             >
+//               {result.name}
+//             </div>
+//           ))}
+//         </div>
+//       </div>
+
+//       <div ref={mapRef} className="w-3/4 h-full" />
+//     </div>
+//   );
+// };
+
+// export default HotelSearchPage;
+
+import React, { useEffect, useRef, useState } from "react";
+import { Loader } from "@googlemaps/js-api-loader";
+
+const HotelSearchPage = () => {
+  const mapRef = useRef(null);
+  const inputRef = useRef(null);
+  const countryRef = useRef(null);
+
+  const mapInstance = useRef(null);
+  const infoWindowRef = useRef(null);
+  const markersRef = useRef([]);
+  const autocompleteRef = useRef(null);
+  const placesServiceRef = useRef(null);
+
+  const [results, setResults] = useState([]);
+
+  const countries = {
+    us: { center: { lat: 37.1, lng: -95.7 }, zoom: 3 },
+    au: { center: { lat: -25.3, lng: 133.8 }, zoom: 4 },
+    br: { center: { lat: -14.2, lng: -51.9 }, zoom: 3 },
+    ca: { center: { lat: 62, lng: -110.0 }, zoom: 3 },
+    fr: { center: { lat: 46.2, lng: 2.2 }, zoom: 5 },
+    de: { center: { lat: 51.2, lng: 10.4 }, zoom: 5 },
+    mx: { center: { lat: 23.6, lng: -102.5 }, zoom: 4 },
+    nz: { center: { lat: -40.9, lng: 174.9 }, zoom: 5 },
+    it: { center: { lat: 41.9, lng: 12.6 }, zoom: 5 },
+    za: { center: { lat: -30.6, lng: 22.9 }, zoom: 5 },
+    es: { center: { lat: 40.5, lng: -3.7 }, zoom: 5 },
+    pt: { center: { lat: 39.4, lng: -8.2 }, zoom: 6 },
+    uk: { center: { lat: 54.8, lng: -4.6 }, zoom: 5 },
+  };
+
+  useEffect(() => {
+    const loader = new Loader({
+      apiKey: "AIzaSyCwa-Z_1vKzlecGHD1mk3UtoN39MpwQORM", // Use your own API key here
+      version: "weekly",
+      libraries: ["places"],
+    });
+
+    loader.load().then(() => {
+      const { maps } = window.google;
+
+      const defaultCountry = "us";
+      const map = new maps.Map(mapRef.current, {
+        center: countries[defaultCountry].center,
+        zoom: countries[defaultCountry].zoom,
+      });
+
+      mapInstance.current = map;
+      infoWindowRef.current = new maps.InfoWindow();
+      placesServiceRef.current = new maps.places.PlacesService(map);
+
+      const autocomplete = new maps.places.Autocomplete(inputRef.current, {
+        types: ["(cities)"],
+        componentRestrictions: { country: defaultCountry },
+        fields: ["geometry"],
+      });
+
+      autocompleteRef.current = autocomplete;
+
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) {
+          inputRef.current.placeholder = "Enter a city";
+          return;
+        }
+
+        map.setCenter(place.geometry.location);
+        map.setZoom(15);
+        searchHotels();
+      });
+
+      countryRef.current.addEventListener("change", () => {
+        const country = countryRef.current.value;
+        if (country === "all") {
+          autocomplete.setComponentRestrictions({ country: [] });
+          map.setCenter({ lat: 15, lng: 0 });
+          map.setZoom(2);
+        } else {
+          autocomplete.setComponentRestrictions({ country });
+          map.setCenter(countries[country].center);
+          map.setZoom(countries[country].zoom);
+        }
+        clearResults();
+        clearMarkers();
+      });
+    });
+  }, []);
+
+  const searchHotels = () => {
+    const map = mapInstance.current;
+    const service = placesServiceRef.current;
+    const bounds = map.getBounds();
+
+    if (!bounds) return;
+
+    service.nearbySearch(
+      {
+        bounds,
+        type: ["lodging"],
+      },
+      (resultsData, status) => {
+        if (status !== window.google.maps.places.PlacesServiceStatus.OK) return;
+
+        clearResults();
+        clearMarkers();
+
+        const newMarkers = [];
+        const newResults = resultsData.map((place, i) => {
+          const markerLetter = String.fromCharCode("A".charCodeAt(0) + (i % 26));
+          const markerIcon = `https://developers.google.com/maps/documentation/javascript/images/marker_green${markerLetter}.png`;
+
+          const marker = new window.google.maps.Marker({
+            position: place.geometry.location,
+            icon: markerIcon,
+            map,
+            animation: window.google.maps.Animation.DROP,
+          });
+
+          marker.placeResult = place;
+
+          marker.addListener("click", () => {
+            service.getDetails({ placeId: place.place_id }, (details, status) => {
+              if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                const content = `
+                  <strong>${details.name}</strong><br>
+                  ${details.vicinity}<br>
+                  Rating: ${details.rating || "N/A"}
+                `;
+                infoWindowRef.current.setContent(content);
+                infoWindowRef.current.open(map, marker);
+              }
+            });
+          });
+
+          newMarkers.push(marker);
+
+          return {
+            name: place.name,
+            marker,
+          };
+        });
+
+        markersRef.current = newMarkers;
+        setResults(newResults); // Updating the results in React state
+      }
+    );
+  };
+
+  const clearMarkers = () => {
+    markersRef.current.forEach((marker) => marker.setMap(null));
+    markersRef.current = [];
+  };
+
+  const clearResults = () => {
+    setResults([]); // Clear the results state
+  };
+
+  return (
+    <div className="flex h-screen">
+      <div className="w-1/4 p-4 bg-white overflow-auto">
+        <h2 className="text-xl font-bold mb-4">Find hotels in:</h2>
+
+        <input
+          ref={inputRef}
+          type="text"
+          className="w-full p-2 border rounded mb-4 text-black"
+          placeholder="Enter a city"
+        />
+
+        <select
+          ref={countryRef}
+          className="w-full p-2 border rounded mb-4 text-black"
+          defaultValue="us"
+        >
+          <option value="all">All</option>
+          <option value="au">Australia</option>
+          <option value="br">Brazil</option>
+          <option value="ca">Canada</option>
+          <option value="fr">France</option>
+          <option value="de">Germany</option>
+          <option value="mx">Mexico</option>
+          <option value="nz">New Zealand</option>
+          <option value="it">Italy</option>
+          <option value="za">South Africa</option>
+          <option value="es">Spain</option>
+          <option value="pt">Portugal</option>
+          <option value="us">U.S.A.</option>
+          <option value="uk">United Kingdom</option>
+        </select>
+
+        <h3 className="text-lg font-semibold mb-2 text-black">Results</h3>
+        <div className="space-y-2 text-black">
+          {results.map((result, index) => (
+            <div
+              key={index}
+              className="p-2 bg-white shadow rounded mb-2 cursor-pointer hover:bg-gray-100"
+              onClick={() =>
+                window.google.maps.event.trigger(result.marker, "click")
+              }
+            >
+              {result.name}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div ref={mapRef} className="w-3/4 h-full" />
+    </div>
+  );
+};
+
+export default HotelSearchPage;
+
